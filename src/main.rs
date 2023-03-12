@@ -5,14 +5,29 @@ use utils::ray::Ray;
 use utils::vec3::{Color, Point3, Vec3};
 
 fn ray_color(r: &Ray) -> Color {
-    if hit_sphere(
+    let t = hit_sphere(
         &Point3 {
             e: [0.0, 0.0, -1.0],
         },
         0.5,
         &r,
-    ) {
-        return Color { e: [1.0, 0.0, 0.0] };
+    );
+    if t.is_some() {
+        if t.unwrap() > 0.0 {
+            let hitpoint_normal = (r.at(t.unwrap())
+                - Vec3 {
+                    e: [0.0, 0.0, -1.0],
+                })
+            .unit_vector();
+            return 0.5
+                * Color {
+                    e: [
+                        hitpoint_normal.x() + 1.0,
+                        hitpoint_normal.y() + 1.0,
+                        hitpoint_normal.z() + 1.0,
+                    ],
+                };
+        }
     }
     let unit_direction = r.direction().unit_vector();
     let t = 0.5 * (unit_direction.y() + 1.0);
@@ -27,22 +42,26 @@ fn write_color(color: &Color) -> Rgb<u8> {
     ])
 }
 
-fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> bool {
+fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> Option<f64> {
     // (x − Cx)^2 + (y − Cy)^2 + (z − Cz)^2 = (P(t)−C)^2
     // (P(t) − C)^2 = r^2
     // (A + tb − C)^2 = r^2
     // (tb + A − C)^2 = r^2
     // (tb)^2 + 2tb⋅(A−C) + (A−C)^2 - r^2 = 0
-    // Solve for tb
+    // Solve for t
     // A- C is origin minus center, tb is direction
 
     let oc = r.origin() - *center;
-    let a = r.direction().dot(&r.direction());
-    let b = 2.0 * r.direction().dot(&oc);
-    let c = oc.dot(&oc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
+    let a = r.direction().length_squared();
+    let half_b = r.direction().dot(&oc);
+    let c = oc.length_squared() - radius * radius;
+    let discriminant = half_b * half_b - a * c;
 
-    discriminant >= 0.0
+    if discriminant < 0.0 {
+        None
+    } else {
+        Some((-half_b - discriminant.sqrt()) / a)
+    }
 }
 
 fn main() {

@@ -1,34 +1,17 @@
 mod utils;
 
 use image::{ImageBuffer, Rgb, RgbImage};
+use utils::hittable::{Hit, HitRecord, HittableList, Sphere};
 use utils::ray::Ray;
-use utils::vec3::{Color, Point3, Vec3};
+use utils::rt_weekend::INFINITY;
+use utils::vec3::{Color, Point3};
 
-fn ray_color(r: &Ray) -> Color {
-    let t = hit_sphere(
-        &Point3 {
-            e: [0.0, 0.0, -1.0],
-        },
-        0.5,
-        &r,
-    );
-    if t.is_some() {
-        if t.unwrap() > 0.0 {
-            let hitpoint_normal = (r.at(t.unwrap())
-                - Vec3 {
-                    e: [0.0, 0.0, -1.0],
-                })
-            .unit_vector();
-            return 0.5
-                * Color {
-                    e: [
-                        hitpoint_normal.x() + 1.0,
-                        hitpoint_normal.y() + 1.0,
-                        hitpoint_normal.z() + 1.0,
-                    ],
-                };
-        }
+fn ray_color<T: Hit>(r: &Ray, world: &T) -> Color {
+    let mut rec: HitRecord = Default::default();
+    if world.hit(r, 0.0, INFINITY, &mut rec) {
+        return 0.5 * (rec.normal + Color { e: [1.0, 1.0, 1.0] });
     }
+
     let unit_direction = r.direction().unit_vector();
     let t = 0.5 * (unit_direction.y() + 1.0);
     (1.0 - t) * Color { e: [1.0, 1.0, 1.0] } + t * Color { e: [0.5, 0.7, 1.0] }
@@ -42,33 +25,26 @@ fn write_color(color: &Color) -> Rgb<u8> {
     ])
 }
 
-fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> Option<f64> {
-    // (x − Cx)^2 + (y − Cy)^2 + (z − Cz)^2 = (P(t)−C)^2
-    // (P(t) − C)^2 = r^2
-    // (A + tb − C)^2 = r^2
-    // (tb + A − C)^2 = r^2
-    // (tb)^2 + 2tb⋅(A−C) + (A−C)^2 - r^2 = 0
-    // Solve for t
-    // A- C is origin minus center, tb is direction
-
-    let oc = r.origin() - *center;
-    let a = r.direction().length_squared();
-    let half_b = r.direction().dot(&oc);
-    let c = oc.length_squared() - radius * radius;
-    let discriminant = half_b * half_b - a * c;
-
-    if discriminant < 0.0 {
-        None
-    } else {
-        Some((-half_b - discriminant.sqrt()) / a)
-    }
-}
-
 fn main() {
     // IMAGE
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 400;
+    const IMAGE_WIDTH: u32 = 3840;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
+
+    // WORLD
+    let mut world = HittableList { objects: vec![] };
+    world.add(Sphere {
+        center: Point3 {
+            e: [0.0, 0.0, -1.0],
+        },
+        radius: 0.5,
+    });
+    world.add(Sphere {
+        center: Point3 {
+            e: [0.0, -100.5, -1.0],
+        },
+        radius: 100.0,
+    });
 
     // CAMERA
     const VIEWPORT_HEIGHT: f64 = 2.0;
@@ -100,7 +76,7 @@ fn main() {
             origin,
             direction: lower_left_corner + u * horizontal + v * vertical - origin,
         };
-        let color = ray_color(&r);
+        let color = ray_color(&r, &world);
 
         *pixel = write_color(&color);
     }

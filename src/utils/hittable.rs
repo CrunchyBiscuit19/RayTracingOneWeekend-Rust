@@ -96,7 +96,7 @@ where
         for object in self.objects.iter() {
             if object.hit(r, t_min, closest_so_far, &mut temp_rec) {
                 hit_anything = true;
-                closest_so_far = temp_rec.t; // Update closest so far to render only the closest object  
+                closest_so_far = temp_rec.t; // Update closest so far to render only the closest object
                 *rec = HitRecord { ..temp_rec };
             }
         }
@@ -104,4 +104,3 @@ where
         hit_anything
     }
 }
-

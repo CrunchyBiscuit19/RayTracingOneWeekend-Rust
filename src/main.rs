@@ -1,9 +1,11 @@
 mod utils;
 
+use crate::utils::camera::Camera;
+use crate::utils::rt_weekend::random_double;
 use image::{ImageBuffer, Rgb, RgbImage};
 use utils::hittable::{Hit, HitRecord, HittableList, Sphere};
 use utils::ray::Ray;
-use utils::rt_weekend::INFINITY;
+use utils::rt_weekend::{clamp, INFINITY};
 use utils::vec3::{Color, Point3};
 
 fn ray_color<T: Hit>(r: &Ray, world: &T) -> Color {
@@ -17,11 +19,20 @@ fn ray_color<T: Hit>(r: &Ray, world: &T) -> Color {
     (1.0 - t) * Color { e: [1.0, 1.0, 1.0] } + t * Color { e: [0.5, 0.7, 1.0] }
 }
 
-fn write_color(color: &Color) -> Rgb<u8> {
+fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
+    let mut r = color[0];
+    let mut g = color[1];
+    let mut b = color[2];
+
+    let scale = 1.0 / samples_per_pixel as f64;
+    r *= scale;
+    g *= scale;
+    b *= scale;
+
     Rgb([
-        (color[0] * 255.0) as u8,
-        (color[1] * 255.0) as u8,
-        (color[2] * 255.0) as u8,
+        (clamp(r, 0.0, 0.999) * 256.0) as u8,
+        (clamp(g, 0.0, 0.999) * 256.0) as u8,
+        (clamp(b, 0.0, 0.999) * 256.0) as u8,
     ])
 }
 
@@ -30,6 +41,7 @@ fn main() {
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: u32 = 3840;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
+    const SAMPLES_PER_PIXEL: u32 = 100;
 
     // WORLD
     let mut world = HittableList { objects: vec![] };
@@ -47,38 +59,23 @@ fn main() {
     });
 
     // CAMERA
-    const VIEWPORT_HEIGHT: f64 = 2.0;
-    const VIEWPORT_WIDTH: f64 = ASPECT_RATIO * VIEWPORT_HEIGHT;
-    const FOCAL_LENGTH: f64 = 1.0;
-
-    // VIEWPORT
-    let origin = Point3 { e: [0.0, 0.0, 0.0] };
-    let horizontal = Point3 {
-        e: [VIEWPORT_WIDTH, 0.0, 0.0],
-    };
-    let vertical = Point3 {
-        e: [0.0, VIEWPORT_HEIGHT, 0.0],
-    };
-    let lower_left_corner = origin
-        - horizontal / 2.0
-        - vertical / 2.0
-        - Point3 {
-            e: [0.0, 0.0, FOCAL_LENGTH],
-        };
+    let camera: Camera = Default::default();
 
     // RENDER
     let mut imgbuf: RgbImage = ImageBuffer::new(IMAGE_WIDTH, IMAGE_HEIGHT);
     for (i, j, pixel) in imgbuf.enumerate_pixels_mut() {
-        let u: f64 = i as f64 / (IMAGE_WIDTH - 1) as f64;
-        let v: f64 = (IMAGE_HEIGHT - 1 - j) as f64 / (IMAGE_HEIGHT - 1) as f64;
+        let mut color: Color = Default::default();
 
-        let r = Ray {
-            origin,
-            direction: lower_left_corner + u * horizontal + v * vertical - origin,
-        };
-        let color = ray_color(&r, &world);
+        for _ in 0..SAMPLES_PER_PIXEL {
+            let u: f64 = (i as f64 + random_double(0.0, 1.0)) / (IMAGE_WIDTH - 1) as f64;
+            let v: f64 = ((IMAGE_HEIGHT - 1 - j) as f64 + random_double(0.0, 1.0))
+                / (IMAGE_HEIGHT - 1) as f64;
 
-        *pixel = write_color(&color);
+            let ray = camera.get_ray(u, v);
+            color += ray_color(&ray, &world);
+        }
+
+        *pixel = write_color(&color, SAMPLES_PER_PIXEL);
     }
 
     imgbuf.save("image/1.png").expect("Image cannot be saved.");

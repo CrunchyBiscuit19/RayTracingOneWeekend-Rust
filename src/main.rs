@@ -6,12 +6,17 @@ use image::{ImageBuffer, Rgb, RgbImage};
 use utils::hittable::{Hit, HitRecord, HittableList, Sphere};
 use utils::ray::Ray;
 use utils::rt_weekend::{clamp, INFINITY};
-use utils::vec3::{Color, Point3};
+use utils::vec3::{Color, Point3, Vec3};
 
-fn ray_color<T: Hit>(r: &Ray, world: &T) -> Color {
+fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
+    if depth <= 0 {
+        return Color { e: [0.0, 0.0, 0.0] };
+    }
+
     let mut rec: HitRecord = Default::default();
-    if world.hit(r, 0.0, INFINITY, &mut rec) {
-        return 0.5 * (rec.normal + Color { e: [1.0, 1.0, 1.0] });
+    if world.hit(r, 0.001, INFINITY, &mut rec) {
+        let target = rec.point + rec.normal + Vec3::random_unit_vector();
+        return 0.5 * ray_color(&Ray {origin: rec.point, direction: target - rec.point}, world, depth - 1);
     }
 
     let unit_direction = r.direction().unit_vector();
@@ -25,9 +30,9 @@ fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
     let mut b = color[2];
 
     let scale = 1.0 / samples_per_pixel as f64;
-    r *= scale;
-    g *= scale;
-    b *= scale;
+    r = (scale * r).sqrt();
+    g = (scale * g).sqrt();
+    b = (scale * b).sqrt();
 
     Rgb([
         (clamp(r, 0.0, 0.999) * 256.0) as u8,
@@ -39,9 +44,10 @@ fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
 fn main() {
     // IMAGE
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 3840;
+    const IMAGE_WIDTH: u32 = 1920;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
     const SAMPLES_PER_PIXEL: u32 = 100;
+    const MAX_REFLECTIONS_DEPTH: u32 = 50;
 
     // WORLD
     let mut world = HittableList { objects: vec![] };
@@ -72,11 +78,11 @@ fn main() {
                 / (IMAGE_HEIGHT - 1) as f64;
 
             let ray = camera.get_ray(u, v);
-            color += ray_color(&ray, &world);
+            color += ray_color(&ray, &world, MAX_REFLECTIONS_DEPTH);
         }
 
         *pixel = write_color(&color, SAMPLES_PER_PIXEL);
     }
 
-    imgbuf.save("image/1.png").expect("Image cannot be saved.");
+    imgbuf.save("image/hd_lambert.png").expect("Image cannot be saved.");
 }

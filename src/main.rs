@@ -3,7 +3,7 @@ mod utils;
 use crate::utils::camera::Camera;
 use crate::utils::rt_weekend::random_double;
 use image::{ImageBuffer, Rgb, RgbImage};
-use utils::hittable::{Hit, HitRecord, HittableList, Sphere};
+use utils::hittable::{Hit, HittableList, Sphere};
 use utils::ray::Ray;
 use utils::rt_weekend::{clamp, INFINITY};
 use utils::vec3::{Color, Point3, Vec3};
@@ -13,15 +13,24 @@ fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
         return Color { e: [0.0, 0.0, 0.0] };
     }
 
-    let mut rec: HitRecord = Default::default();
-    if world.hit(r, 0.001, INFINITY, &mut rec) {
-        let target = rec.point + rec.normal + Vec3::random_unit_vector();
-        return 0.5 * ray_color(&Ray {origin: rec.point, direction: target - rec.point}, world, depth - 1);
+    match world.hit(r, 0.001, INFINITY) {
+        Some(closest_rec) => {
+            let target = closest_rec.point + closest_rec.normal + Vec3::random_unit_vector();
+            0.5 * ray_color(
+                &Ray {
+                    origin: closest_rec.point,
+                    direction: target - closest_rec.point,
+                },
+                world,
+                depth - 1,
+            )
+        }
+        None => {
+            let unit_direction = r.direction().unit_vector();
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            (1.0 - t) * Color { e: [1.0, 1.0, 1.0] } + t * Color { e: [0.5, 0.7, 1.0] }
+        }
     }
-
-    let unit_direction = r.direction().unit_vector();
-    let t = 0.5 * (unit_direction.y() + 1.0);
-    (1.0 - t) * Color { e: [1.0, 1.0, 1.0] } + t * Color { e: [0.5, 0.7, 1.0] }
 }
 
 fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
@@ -44,7 +53,7 @@ fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
 fn main() {
     // IMAGE
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 1920;
+    const IMAGE_WIDTH: u32 = 400;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
     const SAMPLES_PER_PIXEL: u32 = 100;
     const MAX_REFLECTIONS_DEPTH: u32 = 50;
@@ -84,5 +93,7 @@ fn main() {
         *pixel = write_color(&color, SAMPLES_PER_PIXEL);
     }
 
-    imgbuf.save("image/hd_lambert.png").expect("Image cannot be saved.");
+    imgbuf
+        .save("image/a.png")
+        .expect("Image cannot be saved.");
 }

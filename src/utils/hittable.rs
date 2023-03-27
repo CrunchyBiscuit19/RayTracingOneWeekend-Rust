@@ -21,7 +21,7 @@ impl HitRecord {
 }
 
 pub trait Hit {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool;
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
 }
 
 pub struct Sphere {
@@ -30,7 +30,7 @@ pub struct Sphere {
 }
 
 impl Hit for Sphere {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         // (x − Cx)^2 + (y − Cy)^2 + (z − Cz)^2 = (P(t)−C)^2
         // (P(t) − C)^2 = r^2
         // (A + tb − C)^2 = r^2
@@ -46,7 +46,7 @@ impl Hit for Sphere {
 
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
-            return false;
+            return None;
         }
 
         let sqrtd = discriminant.sqrt();
@@ -54,16 +54,16 @@ impl Hit for Sphere {
         if root < t_min || root > t_max {
             root = (-half_b + sqrtd) / a;
             if root < t_min || root > t_max {
-                return false;
+                return None;
             }
         }
 
+        let mut rec: HitRecord = Default::default();
         rec.point = r.at(root);
         rec.t = root;
         let outward_normal = (rec.point - self.center) / self.radius;
         rec.set_face_normal(r, &outward_normal);
-
-        true
+        Some(rec)
     }
 }
 
@@ -88,19 +88,20 @@ impl<T> Hit for HittableList<T>
 where
     T: Hit,
 {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
-        let mut temp_rec: HitRecord = Default::default();
-        let mut hit_anything = false;
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut closest_rec: Option<HitRecord> = None;
         let mut closest_so_far = t_max;
 
         for object in self.objects.iter() {
-            if object.hit(r, t_min, closest_so_far, &mut temp_rec) {
-                hit_anything = true;
-                closest_so_far = temp_rec.t; // Update closest so far to render only the closest object
-                *rec = HitRecord { ..temp_rec };
+            match object.hit(r, t_min, closest_so_far) {
+                Some(temp_rec) => {
+                    closest_so_far = temp_rec.t; // Update closest so far to render only the closest object
+                    closest_rec = Some(temp_rec);
+                }
+                None => continue
             }
         }
 
-        hit_anything
+        closest_rec
     }
 }

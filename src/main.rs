@@ -1,12 +1,14 @@
+use image::{ImageBuffer, Rgb, RgbImage};
+
 mod utils;
 
-use crate::utils::camera::Camera;
-use crate::utils::rt_weekend::random_double;
-use image::{ImageBuffer, Rgb, RgbImage};
+use utils::camera::Camera;
+use utils::rt_weekend::random_double;
 use utils::hittable::{Hit, HittableList, Sphere};
 use utils::ray::Ray;
 use utils::rt_weekend::{clamp, INFINITY};
-use utils::vec3::{Color, Point3, Vec3};
+use utils::vec3::{Color, Point3};
+use utils::material::{Lambertian, Metal};
 
 fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
     if depth <= 0 {
@@ -15,15 +17,14 @@ fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
 
     match world.hit(r, 0.001, INFINITY) {
         Some(closest_rec) => {
-            let target = closest_rec.point + closest_rec.normal + Vec3::random_unit_vector();
-            0.5 * ray_color(
-                &Ray {
-                    origin: closest_rec.point,
-                    direction: target - closest_rec.point,
-                },
-                world,
-                depth - 1,
-            )
+            match closest_rec.mat_ptr.scatter(r, &closest_rec) {
+                Some((scattered_ray, attenuation)) => { // Attenuation is a percentage of the original light that is used to color a pixel.
+                    attenuation * ray_color(&scattered_ray, world, depth - 1)
+                }
+                None => {
+                    Color { e: [0.0, 0.0, 0.0] }
+                }
+            }
         }
         None => {
             let unit_direction = r.direction().unit_vector();
@@ -60,17 +61,34 @@ fn main() {
 
     // WORLD
     let mut world = HittableList { objects: vec![] };
-    world.add(Sphere {
-        center: Point3 {
-            e: [0.0, 0.0, -1.0],
-        },
-        radius: 0.5,
-    });
+    
     world.add(Sphere {
         center: Point3 {
             e: [0.0, -100.5, -1.0],
         },
         radius: 100.0,
+        mat_ptr: &Lambertian { albedo: Color { e: [0.8, 0.8, 0.0] } }
+    });
+    world.add(Sphere {
+        center: Point3 {
+            e: [0.0, 0.0, -1.0],
+        },
+        radius: 0.5,
+        mat_ptr: &Lambertian { albedo: Color { e: [0.7, 0.3, 0.3] } }
+    });
+    world.add(Sphere {
+        center: Point3 {
+            e: [-1.0, 0.0, -1.0],
+        },
+        radius: 0.5,
+        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.8, 0.8] } }
+    });
+    world.add(Sphere {
+        center: Point3 {
+            e: [1.0, 0.0, -1.0],
+        },
+        radius: 0.5,
+        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.6, 0.2] } }
     });
 
     // CAMERA
@@ -94,6 +112,6 @@ fn main() {
     }
 
     imgbuf
-        .save("image/a.png")
+        .save(format!("image/{}x{}.png", IMAGE_WIDTH, IMAGE_HEIGHT))
         .expect("Image cannot be saved.");
 }

@@ -170,12 +170,16 @@ impl Vec3 {
         }
     }
 
-    pub fn random_unit_vector() -> Self {
+    pub fn random_in_unit_sphere() -> Self {
         loop {
             let p = Vec3::random(-1.0, 1.0);
             if p.length_squared() >= 1.0 {continue};
-            return p.unit_vector();
+            return p;
         };
+    }
+
+    pub fn random_unit_vector() -> Self {
+        Self::random_in_unit_sphere().unit_vector()
     }
 
     pub fn near_zero(&self) -> bool {
@@ -184,8 +188,15 @@ impl Vec3 {
         (self.e[0].abs() < s) && (self.e[1].abs() < s) && (self.e[2].abs() < s)
     }
 
-    pub fn reflect(v: Self, n: Self) -> Self {
-        v - 2.0 * v.dot(&n) * n
+    pub fn reflect(&self, n: Self) -> Self {
+        *self - 2.0 * self.dot(&n) * n
+    }
+
+    pub fn refract(&self, n: Self, etai_over_etat: f64) -> Self {
+        let cos_theta = (-*self).dot(&n).min(1.0);
+        let r_out_perp = etai_over_etat * (*self + cos_theta * n);
+        let r_out_parallel = -(1.0 - r_out_perp.length_squared()).abs().sqrt() * n;
+        r_out_perp + r_out_parallel
     }
 }
 

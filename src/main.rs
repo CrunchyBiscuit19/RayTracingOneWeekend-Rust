@@ -1,14 +1,18 @@
 use image::{ImageBuffer, Rgb, RgbImage};
 
 mod utils;
+mod shapes;
 
 use utils::camera::Camera;
 use utils::rt_weekend::random_double;
-use utils::hittable::{Hit, HittableList, Sphere};
+use utils::hittable::{Hit, HittableList};
 use utils::ray::Ray;
 use utils::rt_weekend::{clamp, INFINITY};
 use utils::vec3::{Color, Point3};
 use utils::material::{Lambertian, Metal};
+use shapes::sphere::Sphere;
+
+use crate::utils::material::Dielectric;
 
 fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
     if depth <= 0 {
@@ -54,7 +58,7 @@ fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
 fn main() {
     // IMAGE
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 400;
+    const IMAGE_WIDTH: u32 = 1920;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
     const SAMPLES_PER_PIXEL: u32 = 100;
     const MAX_REFLECTIONS_DEPTH: u32 = 50;
@@ -74,21 +78,28 @@ fn main() {
             e: [0.0, 0.0, -1.0],
         },
         radius: 0.5,
-        mat_ptr: &Lambertian { albedo: Color { e: [0.7, 0.3, 0.3] } }
+        mat_ptr: &Lambertian { albedo: Color { e: [0.1, 0.2, 0.5] } }
     });
     world.add(Sphere {
         center: Point3 {
             e: [-1.0, 0.0, -1.0],
         },
         radius: 0.5,
-        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.8, 0.8] } }
+        mat_ptr: &Dielectric { ir: 1.5 }
+    });
+    world.add(Sphere {
+        center: Point3 {
+            e: [-1.0, 0.0, -1.0],
+        },
+        radius: -0.4,
+        mat_ptr: &Dielectric { ir: 1.5 }
     });
     world.add(Sphere {
         center: Point3 {
             e: [1.0, 0.0, -1.0],
         },
         radius: 0.5,
-        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.6, 0.2] } }
+        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.6, 0.2] }, fuzz: 1.0 }
     });
 
     // CAMERA

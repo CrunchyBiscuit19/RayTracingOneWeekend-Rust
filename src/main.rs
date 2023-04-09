@@ -1,16 +1,16 @@
 use image::{ImageBuffer, Rgb, RgbImage};
 
-mod utils;
 mod shapes;
+mod utils;
 
+use shapes::sphere::Sphere;
 use utils::camera::Camera;
-use utils::rt_weekend::random_double;
 use utils::hittable::{Hit, HittableList};
+use utils::material::{Dielectric, Lambertian, Metal};
 use utils::ray::Ray;
+use utils::rt_weekend::random_double;
 use utils::rt_weekend::{clamp, INFINITY};
 use utils::vec3::{Color, Point3};
-use utils::material::{Lambertian, Metal, Dielectric};
-use shapes::sphere::Sphere;
 
 fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
     if depth <= 0 {
@@ -20,12 +20,11 @@ fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
     match world.hit(r, 0.001, INFINITY) {
         Some(closest_rec) => {
             match closest_rec.mat_ptr.scatter(r, &closest_rec) {
-                Some((scattered_ray, attenuation)) => { // Attenuation is a percentage of the original light that is used to color a pixel.
+                Some((scattered_ray, attenuation)) => {
+                    // Attenuation is a percentage of the original light that is used to color a pixel.
                     attenuation * ray_color(&scattered_ray, world, depth - 1)
                 }
-                None => {
-                    Color { e: [0.0, 0.0, 0.0] }
-                }
+                None => Color { e: [0.0, 0.0, 0.0] },
             }
         }
         None => {
@@ -56,7 +55,7 @@ fn write_color(color: &Color, samples_per_pixel: u32) -> Rgb<u8> {
 fn main() {
     // IMAGE
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 400;
+    const IMAGE_WIDTH: u32 = 1920;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
     const SAMPLES_PER_PIXEL: u32 = 100;
     const MAX_REFLECTIONS_DEPTH: u32 = 50;
@@ -69,39 +68,63 @@ fn main() {
             e: [0.0, -100.5, -1.0],
         },
         radius: 100.0,
-        mat_ptr: &Lambertian { albedo: Color { e: [0.8, 0.8, 0.0] } }
+        mat_ptr: &Lambertian {
+            albedo: Color { e: [0.8, 0.8, 0.0] },
+        },
     });
     world.add(Sphere {
         center: Point3 {
             e: [0.0, -0.0, -1.0],
         },
         radius: 0.5,
-        mat_ptr: &Lambertian { albedo: Color { e: [0.1, 0.2, 0.5] } }
+        mat_ptr: &Lambertian {
+            albedo: Color { e: [0.1, 0.2, 0.5] },
+        },
     });
     world.add(Sphere {
         center: Point3 {
             e: [-1.0, 0.0, -1.0],
         },
         radius: 0.5,
-        mat_ptr: &Dielectric { ir: 1.5 }
+        mat_ptr: &Dielectric { ir: 1.5 },
     });
     world.add(Sphere {
         center: Point3 {
             e: [-1.0, 0.0, -1.0],
         },
         radius: -0.4,
-        mat_ptr: &Dielectric { ir: 1.5 }
+        mat_ptr: &Dielectric { ir: 1.5 },
     });
     world.add(Sphere {
         center: Point3 {
             e: [1.0, 0.0, -1.0],
         },
         radius: 0.5,
-        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.6, 0.2] }, fuzz: 1.0 }
+        mat_ptr: &Metal {
+            albedo: Color { e: [0.8, 0.6, 0.2] },
+            fuzz: 1.0,
+        },
     });
 
     // CAMERA
-    let camera = Camera::new(Point3 { e: [-2.0, 2.0, 1.0] }, Point3 { e: [0.0, 0.0, -1.0] }, Point3 { e: [0.0, 1.0, 0.0] }, 70.0, ASPECT_RATIO);
+    const LOOKFROM: Point3 = Point3 {
+        e: [3.0, 3.0, 2.0],
+    };
+    const LOOKAT: Point3 = Point3 {
+        e: [0.0, 0.0, -1.0],
+    };
+    const VUP: Point3 = Point3 { e: [0.0, 1.0, 0.0] };
+    const VFOV: f64 = 70.0; 
+    const APERTURE: f64 = 2.0;
+    let camera = Camera::new(
+        LOOKFROM,
+        LOOKAT,
+        VUP,
+        VFOV,
+        ASPECT_RATIO,
+        APERTURE,
+        (LOOKAT - LOOKFROM).length()
+    );
     // RENDER
     let mut imgbuf: RgbImage = ImageBuffer::new(IMAGE_WIDTH, IMAGE_HEIGHT);
     for (i, j, pixel) in imgbuf.enumerate_pixels_mut() {

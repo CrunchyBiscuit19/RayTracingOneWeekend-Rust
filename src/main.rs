@@ -9,10 +9,8 @@ use utils::hittable::{Hit, HittableList};
 use utils::ray::Ray;
 use utils::rt_weekend::{clamp, INFINITY};
 use utils::vec3::{Color, Point3};
-use utils::material::{Lambertian, Metal};
+use utils::material::{Lambertian, Metal, Dielectric};
 use shapes::sphere::Sphere;
-
-use crate::utils::material::Dielectric;
 
 fn ray_color<T: Hit>(r: &Ray, world: &T, depth: u32) -> Color {
     if depth <= 0 {
@@ -66,45 +64,24 @@ fn main() {
     // WORLD
     let mut world = HittableList { objects: vec![] };
     
+    let r = (std::f64::consts::PI / 4.0).cos();
     world.add(Sphere {
         center: Point3 {
-            e: [0.0, -100.5, -1.0],
+            e: [r, 0.0, -1.0],
         },
-        radius: 100.0,
-        mat_ptr: &Lambertian { albedo: Color { e: [0.8, 0.8, 0.0] } }
+        radius: r,
+        mat_ptr: &Lambertian { albedo: Color { e: [0.0, 0.0, 1.0] } }
     });
     world.add(Sphere {
         center: Point3 {
-            e: [0.0, 0.0, -1.0],
+            e: [-r, 0.0, -1.0],
         },
-        radius: 0.5,
-        mat_ptr: &Lambertian { albedo: Color { e: [0.1, 0.2, 0.5] } }
-    });
-    world.add(Sphere {
-        center: Point3 {
-            e: [-1.0, 0.0, -1.0],
-        },
-        radius: 0.5,
-        mat_ptr: &Dielectric { ir: 1.5 }
-    });
-    world.add(Sphere {
-        center: Point3 {
-            e: [-1.0, 0.0, -1.0],
-        },
-        radius: -0.4,
-        mat_ptr: &Dielectric { ir: 1.5 }
-    });
-    world.add(Sphere {
-        center: Point3 {
-            e: [1.0, 0.0, -1.0],
-        },
-        radius: 0.5,
-        mat_ptr: &Metal { albedo: Color { e: [0.8, 0.6, 0.2] }, fuzz: 1.0 }
+        radius: r,
+        mat_ptr: &Lambertian { albedo: Color { e: [1.0, 0.0, 0.0] } }
     });
 
     // CAMERA
-    let camera: Camera = Default::default();
-
+    let camera = Camera::new(90.0, ASPECT_RATIO);
     // RENDER
     let mut imgbuf: RgbImage = ImageBuffer::new(IMAGE_WIDTH, IMAGE_HEIGHT);
     for (i, j, pixel) in imgbuf.enumerate_pixels_mut() {

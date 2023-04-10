@@ -23,10 +23,8 @@ impl Camera {
         aperture: f64,
         focus_distance: f64,
     ) -> Self {
-        const FOCAL_LENGTH: f64 = 1.0;
-
         let theta = degrees_to_radians(vfov);
-        let h = (theta / 2.0).tan() * FOCAL_LENGTH; // Multiply by distance to viewport (focal length)
+        let h = (theta / 2.0).tan();
 
         let viewport_height: f64 = 2.0 * h;
         let viewport_width: f64 = aspect_ratio * viewport_height;
@@ -36,14 +34,14 @@ impl Camera {
         let v = w.cross(&u);
 
         let origin = lookfrom;
-        let horizontal = focus_distance * viewport_width * u;
+        let horizontal = focus_distance * viewport_width * u; // Multiplying by focus distance zooms out to accomodate
         let vertical = focus_distance * viewport_height * v;
 
         Self {
             origin,
             horizontal,
             vertical,
-            lower_left_corner: origin - horizontal / 2.0 - vertical / 2.0 - focus_distance * w,
+            lower_left_corner: origin - horizontal / 2.0 - vertical / 2.0 - focus_distance * w, // - focus_distance * w moves viewport to the lookat position
             lens_radius: aperture / 2.0,
             w,
             u,
@@ -56,10 +54,10 @@ impl Camera {
         let offset = self.u * rd.x() + self.v * rd.y();
 
         Ray {
-            origin: self.origin + offset,
+            origin: self.origin + offset, // offset causes the blur effect
             direction: self.lower_left_corner + s * self.horizontal + t * self.vertical
                 - self.origin
-                - offset,
+                - offset, // the closer the ray hits to the center, the less blurry that part of the picture is?
         }
     }
 }

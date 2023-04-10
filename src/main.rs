@@ -74,7 +74,7 @@ fn main() {
     });
     world.add(Sphere {
         center: Point3 {
-            e: [0.0, -0.0, -1.0],
+            e: [0.0, 0.0, -1.0],
         },
         radius: 0.5,
         mat_ptr: &Lambertian {
